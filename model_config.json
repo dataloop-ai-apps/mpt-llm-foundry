@@ -1,0 +1,138 @@
+{
+    "weights_filename": "mpt.pt",
+    "device": "cuda:0",
+    "convert_data": {
+        "split": "train",
+        "concat_tokens": 2048,
+        "tokenizer": "EleutherAI/gpt-neox-20b",
+        "eos_text": "<|endoftext|>",
+        "bos_text": "",
+        "compression": null,
+        "no_wrap": false,
+        "dataset_type": "json",
+        "path": "tmp/6464b65904fc4722a15444c2/datasets/646079b45ff2d2331d70f9d5",
+        "out_root": "local-converted-data"
+    },
+    "generate": {
+        "max_new_tokens": 256
+    },
+    "convert": {
+        "output_precision": "fp16"
+    },
+    "train": {
+        "train_loader_dataset_split": "train",
+        "eval_loader_dataset_split": "",
+        "max_duration": "4800ba",
+        "eval_interval": "500ba",
+        "save_latest_filename": "latest.pt",
+        "data_local": "./local-converted-data",
+        "data_remote": null,
+        "max_seq_len": 2048,
+        "global_seed": 17,
+        "run_name": null,
+        "model": {
+            "name": "mpt_causal_lm",
+            "init_device": "meta",
+            "d_model": 768,
+            "n_heads": 12,
+            "n_layers": 12,
+            "expansion_ratio": 4,
+            "max_seq_len": 2048,
+            "vocab_size": 50368,
+            "attn_config": {
+                "attn_impl": "torch"
+            },
+            "loss_fn": "torch_crossentropy"
+        },
+        "tokenizer": {
+            "name": "EleutherAI/gpt-neox-20b",
+            "kwargs": {
+                "model_max_length": 2048
+            }
+        },
+        "train_loader": {
+            "name": "text",
+            "dataset": {
+                "local": "./local-converted-data",
+                "remote": "./local-converted-data",
+                "split": "train",
+                "shuffle": true,
+                "max_seq_len": 2048,
+                "shuffle_seed": 1337
+            },
+            "drop_last": true,
+            "num_workers": 4
+        },
+        "eval_loader": {
+            "name": "text",
+            "dataset": {
+                "local": ".",
+                "remote": ".",
+                "split": null,
+                "shuffle": false,
+                "max_seq_len": 2048,
+                "shuffle_seed": 1337
+            },
+            "drop_last": false,
+            "num_workers": 4
+        },
+        "scheduler": {
+            "name": "cosine_with_warmup",
+            "t_warmup": "100ba",
+            "alpha_f": 0.1
+        },
+        "optimizer": {
+            "name": "decoupled_adamw",
+            "lr": 0.0006,
+            "betas": [
+                0.9,
+                0.95
+            ],
+            "eps": 1e-08,
+            "weight_decay": 0
+        },
+        "algorithms": {
+            "gradient_clipping": {
+                "clipping_type": "norm",
+                "clipping_threshold": 1
+            }
+        },
+        "eval_first": false,
+        "eval_subset_num_batches": -1,
+        "global_train_batch_size": 2,
+        "seed": 1337,
+        "device_eval_batch_size": 2,
+        "device_train_microbatch_size": 2,
+        "precision": "amp_fp16",
+        "fsdp_config": {
+            "sharding_strategy": "FULL_SHARD",
+            "mixed_precision": "PURE",
+            "activation_checkpointing": false,
+            "activation_checkpointing_reentrant": false,
+            "activation_cpu_offload": false,
+            "limit_all_gathers": true,
+            "verbose": false
+        },
+        "progress_bar": false,
+        "log_to_console": true,
+        "console_log_interval": "1ba",
+        "callbacks": {
+            "speed_monitor": {
+                "window_size": 10
+            },
+            "lr_monitor": {},
+            "memory_monitor": {},
+            "runtime_estimator": {}
+        }
+    },
+    "load": {
+        "use_auth_token": false,
+        "trust_remote_code": true,
+        "revision": null,
+        "model_dtype": "fp16"
+    },
+    "artifacts_path": "/Users/danielf/.dataloop/models/mpt-llm",
+    "model_filename": "weights/best.pt",
+    "id_to_label_map": {},
+    "label_to_id_map": {}
+}

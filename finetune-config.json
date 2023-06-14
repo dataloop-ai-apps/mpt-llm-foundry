@@ -1,0 +1,106 @@
+{
+    "weights_filename": "mpt.pt",
+    "device": "cuda:0",
+    "convert_data": {
+        "data_subset": null,
+        "splits": "train",
+        "preprocessor": "scripts.train.finetune_example.preprocessing:multiple_choice",
+        "concat_tokens": 2048,
+        "tokenizer": "EleutherAI/gpt-neox-20b",
+        "eos_text": "<|endoftext|>",
+        "bos_text": "",
+        "compression": null,
+        "no_wrap": false,
+        "dataset_type": "finetune",
+        "out_root": "local-converted-data"
+    },
+    "generate": {
+        "max_new_tokens": 256
+    },
+    "convert": {
+        "output_precision": "fp16"
+    },
+    "train": {
+        "max_seq_len": 512,
+        "global_seed": 17,
+        "run_name": "finetuning-test",
+        "model": {
+            "name": "hf_causal_lm",
+            "pretrained_model_name_or_path": "gpt2",
+            "pretrained": true
+        },
+        "tokenizer": {
+            "name": "gpt2",
+            "kwargs": {
+                "model_max_length": 512
+            }
+        },
+        "train_loader": {
+            "name": "finetuning",
+            "dataset": {
+                "hf_name": "json",
+                "hf_kwargs": {
+                    "data_dir": "local-converted-data"
+                },
+                "preprocessing_fn": "scripts.train.finetune_example.preprocessing:multiple_choice",
+                "split": "train",
+                "shuffle": true,
+                "max_seq_len": 512,
+                "decoder_only_format": true
+            },
+            "drop_last": true,
+            "num_workers": 8
+        },
+        "scheduler": {
+            "name": "cosine_with_warmup",
+            "t_warmup": "100ba",
+            "alpha_f": 0.1
+        },
+        "optimizer": {
+            "name": "decoupled_adamw",
+            "lr": 0.0006,
+            "betas": [
+                0.9,
+                0.95
+            ],
+            "eps": 1e-08,
+            "weight_decay": 0.0
+        },
+        "algorithms": {
+            "gradient_clipping": {
+                "clipping_type": "norm",
+                "clipping_threshold": 1.0
+            }
+        },
+        "max_duration": "1ep",
+        "eval_interval": 1,
+        "eval_first": false,
+        "eval_subset_num_batches": -1,
+        "global_train_batch_size": 8,
+        "seed": 17,
+        "device_eval_batch_size": 8,
+        "device_train_microbatch_size": 8,
+        "precision": "fp32",
+        "progress_bar": false,
+        "log_to_console": true,
+        "console_log_interval": "1ba",
+        "callbacks": {
+            "speed_monitor": {
+                "window_size": 10
+            },
+            "lr_monitor": {},
+            "memory_monitor": {},
+            "runtime_estimator": {}
+        }
+    },
+    "load": {
+        "use_auth_token": false,
+        "trust_remote_code": true,
+        "revision": null,
+        "model_dtype": "fp16"
+    },
+    "artifacts_path": "/Users/danielf/.dataloop/models/mpt-llm",
+    "model_filename": "weights/best.pt",
+    "id_to_label_map": {},
+    "label_to_id_map": {}
+}

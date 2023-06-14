@@ -1,0 +1,142 @@
+{
+    "weights_filename": "mpt.pt",
+    "device": "cuda:0",
+    "convert_data": {
+        "data_subset": null,
+        "splits": [
+            "train"
+        ],
+        "preprocessor": "scripts.train.finetune_example.preprocessing:multiple_choice",
+        "concat_tokens": 2048,
+        "tokenizer": "EleutherAI/gpt-neox-20b",
+        "eos_text": "<|endoftext|>",
+        "bos_text": "",
+        "compression": null,
+        "no_wrap": false,
+        "dataset_type": "finetune",
+        "out_root": "local-converted-data",
+        "dataset": "tmp/646b89d74628437c1847a90f/datasets/646b89ac0c6d893f01de86af",
+        "skip_processing": false,
+        "skip_preprocessing": false,
+        "local": "local-converted-data"
+    },
+    "generate": {
+        "max_new_tokens": 256
+    },
+    "convert": {
+        "output_precision": "fp16",
+        "hf_output_path": "tmp/646b89d74628437c1847a90f/output/trained_model",
+        "hf_repo_for_upload": null,
+        "local_checkpoint_save_location": null,
+        "composer_path": "tmp/646b89d74628437c1847a90f/output/latest.pt"
+    },
+    "train": {
+        "max_seq_len": 512,
+        "global_seed": 17,
+        "run_name": "finetuning-test",
+        "model": {
+            "name": "hf_t5",
+            "pretrained_model_name_or_path": "t5-small",
+            "pretrained": true,
+            "attn_config": {
+                "attn_impl": "torch"
+            },
+            "loss_fn": "fused_crossentropy"
+        },
+        "tokenizer": {
+            "name": "t5-small",
+            "kwargs": {
+                "model_max_length": 512
+            }
+        },
+        "train_loader": {
+            "name": "finetuning",
+            "dataset": {
+                "hf_name": "HuggingFaceH4/databricks_dolly_15k",
+                "hf_kwargs": {
+                    "data_dir": "tmp/646b89d74628437c1847a90f/datasets/646b89ac0c6d893f01de86af"
+                },
+                "preprocessing_fn": "scripts.train.finetune_example.preprocessing:multiple_choice",
+                "split": "train",
+                "shuffle": true,
+                "max_seq_len": 512,
+                "decoder_only_format": false,
+                "train_loader_dataset_split": "train",
+                "allow_pad_trimming": false
+            },
+            "drop_last": true,
+            "num_workers": 8,
+            "pin_memory": false,
+            "prefetch_factor": 2,
+            "persistent_workers": true,
+            "timeout": 0
+        },
+        "scheduler": {
+            "name": "linear_decay_with_warmup",
+            "t_warmup": "0ba",
+            "alpha_f": 0
+        },
+        "optimizer": {
+            "name": "decoupled_adamw",
+            "lr": 1e-05,
+            "betas": [
+                0.9,
+                0.999
+            ],
+            "eps": 1e-08,
+            "weight_decay": 0
+        },
+        "algorithms": {
+            "gradient_clipping": {
+                "clipping_type": "norm",
+                "clipping_threshold": 1
+            }
+        },
+        "max_duration": "1ep",
+        "eval_interval": 1,
+        "eval_first": false,
+        "eval_subset_num_batches": -1,
+        "global_train_batch_size": 1,
+        "seed": 17,
+        "device_eval_batch_size": 1,
+        "device_train_microbatch_size": 1,
+        "precision": "amp_fp16",
+        "progress_bar": false,
+        "log_to_console": true,
+        "console_log_interval": "1ba",
+        "callbacks": {
+            "speed_monitor": {
+                "window_size": 10
+            },
+            "lr_monitor": {},
+            "memory_monitor": {},
+            "runtime_estimator": {}
+        },
+        "train_loader_dataset_split": "train",
+        "train_loader.dataset.split": "train",
+        "eval_loader_dataset_split": "",
+        "eval_loader.dataset.split": "",
+        "save_overwrite": true,
+        "save_latest_filename": "latest.pt",
+        "model_name": "t5-small",
+        "fdsp_config": {
+            "sharding_strategy": "FULL_SHARD",
+            "mixed_precision": "PURE",
+            "activation_checkpointing": true,
+            "activation_checkpointing_reentrant": false,
+            "activation_cpu_offload": false,
+            "limit_all_gathers": true,
+            "verbose": false
+        }
+    },
+    "load": {
+        "use_auth_token": false,
+        "trust_remote_code": true,
+        "revision": null,
+        "model_dtype": "fp16"
+    },
+    "artifacts_path": "/tmp/.dataloop/models/mpt-llm-finetuning",
+    "model_filename": "weights/best.pt",
+    "id_to_label_map": {},
+    "label_to_id_map": {}
+}

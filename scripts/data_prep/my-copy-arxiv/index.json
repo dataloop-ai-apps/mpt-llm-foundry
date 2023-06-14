@@ -1,0 +1,1 @@
+{"shards": [{"column_encodings": ["bytes"], "column_names": ["tokens"], "column_sizes": [null], "compression": null, "format": "mds", "hashes": [], "raw_data": {"basename": "shard.00000.mds", "bytes": 2835997, "hashes": {}}, "samples": 173, "size_limit": 67108864, "version": 2, "zip_data": null}], "version": 2}
