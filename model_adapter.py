@@ -5,13 +5,11 @@ import torch
 import shutil
 import warnings
 import dtlpy as dl
-from glob import glob
 from omegaconf import OmegaConf as om
 from scripts.train import train
 from scripts.inference import convert_composer_to_hf, hf_generate
 from scripts.data_prep import convert_dataset_json, convert_dataset_hf, convert_finetuning_dataset
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
-from datetime import datetime
 from argparse import Namespace
 
 logger = logging.Logger("MPT-ADAPTER")
@@ -138,7 +136,12 @@ class Adapter(dl.BaseModelAdapter):
         if not self.model:
             raise FileNotFoundError("Model trained, but its files weren't found. Trained model was lost.")
 
+    def prepare_item_func(self, item: dl.Item):
+        buffer = json.load(item.download(save_locally=False))
+        return buffer
+
     def predict(self, batch, **kwargs):
+        annotations = []
         generate_config = self.configuration.get("generate", {})
         generate_config["loaded"] = self.model is not None
         if generate_config["loaded"]:
@@ -168,24 +171,24 @@ class Adapter(dl.BaseModelAdapter):
         generate_config['pad_token_id'] = None
         generate_config["device"] = self.configuration.get("device", "cpu")
         generate_config['name_or_path'] = os.path.join(os.getcwd(), "output", "trained_model")
-        outputs = hf_generate.main(Namespace(**generate_config))
-        timestamp = datetime.now().strftime(f"%H-%M-%S_%d-%m-%Y")
-        tags = []
-        for i, (prompt, response) in enumerate(zip(batch, outputs)):
-            text_annotation = dl.AnnotationCollection()
-            print(f"[Prompt]: {prompt}")
-            print("#" * 30)
-            print(f"[Reponse]: {response}")
-            txt = f"[Prompt]: {prompt}\n" + "#" * 100 + f"\n[Response]: {response}"
-            with open(f"output_{i}.txt", "w") as f:
-                f.write(txt)
-            self.model_entity.dataset.items.upload(f"output_{i}.txt", remote_path=f"/responses/{timestamp}")
-            label = f"/responses/{timestamp}/output_{i}.txt"
-            text_annotation.add(annotation_definition=dl.Classification(label),
-                                model_info={'name': self.model_entity.name,
-                                            'confidence': 1.0})
-            tags.append(text_annotation)
-        return tags
+        for item in batch:
+            item_annotations = []
+            prompt_items = item["prompts"]
+            prompt_keys = list(prompt_items.keys())
+            prompt_contents = dict(prompt_items.values())
+            generate_config['prompts'] = [question['value'] for question in prompt_contents.values()]
+            responses = hf_generate.main(Namespace(**generate_config))
+            item_annotations.extend(
+                [{
+                    'type': 'text',
+                    'label': 'q',
+                    'coordinates': response,
+                    'metadata': {'system': {'promptId': prompt_keys[i]}}
+                    } for i, response in enumerate(responses)
+                    ]
+                )
+            annotations.append(item_annotations)
+        return annotations
 
     def convert_from_dtlpy(self, data_path, **kwargs):
         convert_configs = self.configuration.get("convert_data", {})
