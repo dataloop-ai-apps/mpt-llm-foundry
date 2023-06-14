@@ -13,11 +13,15 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from argparse import Namespace
 
 logger = logging.Logger("MPT-ADAPTER")
+PROJECT_NAME = "nlp-experiments"
+DATASET_NAME = "small-c4"
 
 
-@dl.Package.decorators.module(name='model-adapter',
-                              description='Model Adapter for MPT LLM',
-                              init_inputs={'model_entity': dl.Model})
+@dl.Package.decorators.module(
+    name='model-adapter',
+    description='Model Adapter for MPT LLM',
+    init_inputs={'model_entity': dl.Model}
+    )
 class Adapter(dl.BaseModelAdapter):
     model = None
     tokenizer = None
@@ -36,10 +40,12 @@ class Adapter(dl.BaseModelAdapter):
                 'use_auth_token': load_config.get("use_auth_token", False),
                 'trust_remote_code': load_config.get("trust_remote_code"),
                 'revision': load_config.get("revision")
-            }
+                }
             try:
-                hf_config = AutoConfig.from_pretrained(trained_model_path,
-                                                       **from_pretrained_kwargs)
+                hf_config = AutoConfig.from_pretrained(
+                    trained_model_path,
+                    **from_pretrained_kwargs
+                    )
                 if load_config.get("attn_impl") is not None and hasattr(hf_config, 'attn_config'):
                     hf_config.attn_config['attn_impl'] = load_config.get("attn_impl")
                 if load_config.get("max_seq_len") is not None and hasattr(hf_config, 'max_seq_len'):
@@ -49,7 +55,7 @@ class Adapter(dl.BaseModelAdapter):
                     'If you are having auth problems, try logging in via `huggingface-cli login` '
                     'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
                     'using your access token from https://huggingface.co/settings/tokens.'
-                ) from e
+                    ) from e
 
             def get_dtype(dtype: str) -> torch.dtype:
                 if dtype == 'fp32':
@@ -61,7 +67,8 @@ class Adapter(dl.BaseModelAdapter):
                 else:
                     raise NotImplementedError(
                         f'dtype {dtype} is not supported. '
-                        f'We only support fp32, fp16, and bf16 currently')
+                        f'We only support fp32, fp16, and bf16 currently'
+                        )
 
             # Set device and model_dtype
             if self.configuration.get("device") is not None:
@@ -77,10 +84,12 @@ class Adapter(dl.BaseModelAdapter):
             # Load HF Model
             print(f'Loading HF model to device={device} and dtype={model_dtype}...')
             try:
-                self.model = AutoModelForCausalLM.from_pretrained(trained_model_path,
-                                                                  config=hf_config,
-                                                                  torch_dtype=model_dtype,
-                                                                  **from_pretrained_kwargs)
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    trained_model_path,
+                    config=hf_config,
+                    torch_dtype=model_dtype,
+                    **from_pretrained_kwargs
+                    )
                 self.model.to(device)
                 print(f'n_params={sum(p.numel() for p in self.model.parameters())}')
             except Exception as e:
@@ -88,15 +97,17 @@ class Adapter(dl.BaseModelAdapter):
                     'If you are having auth problems, try logging in via `huggingface-cli login` '
                     'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
                     'using your access token from https://huggingface.co/settings/tokens.'
-                ) from e
+                    ) from e
 
             print('\nLoading HF tokenizer...')
-            self.tokenizer = AutoTokenizer.from_pretrained(trained_model_path,
-                                                           **from_pretrained_kwargs)
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                trained_model_path,
+                **from_pretrained_kwargs
+                )
             if self.tokenizer.pad_token_id is None:
                 warnings.warn(
                     'pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.'
-                )
+                    )
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.padding_side = 'left'
         else:
@@ -109,15 +120,17 @@ class Adapter(dl.BaseModelAdapter):
         train_cfg = self.configuration.get("train", {})
         train_cfg["train_loader.dataset.split"] = train_cfg["train_loader_dataset_split"]
         train_cfg["eval_loader.dataset.split"] = train_cfg["eval_loader_dataset_split"]
-        train_cfg["train_loader"]["dataset"]["split"] = None if train_cfg["train_loader"]["dataset"]["split"] == ''\
+        train_cfg["train_loader"]["dataset"]["split"] = None if train_cfg["train_loader"]["dataset"]["split"] == '' \
             else train_cfg["train_loader"]["dataset"]["split"]
         train_cfg['train_loader']['dataset']['hf_kwargs'] = {'data_dir': data_path}
         train_cfg = om.create(train_cfg)
         train_cfg.data_local = self.configuration.get("convert_data", {}).get("out_root", data_path)
         train_cfg.save_folder = output_path
         train.main(train_cfg, self.model, self.tokenizer)
-        self.model_entity.dataset.items.upload(os.path.join(output_path, train_cfg.save_latest_filename),
-                                               remote_path="/.dataloop")
+        self.model_entity.dataset.items.upload(
+            os.path.join(output_path, train_cfg.save_latest_filename),
+            remote_path="/.dataloop"
+            )
         # Initializing converter configuration. The converter takes torch model and converts to HF format
         convert_cfg = self.configuration.get("convert", {})
         convert_cfg["hf_output_path"] = os.path.join(output_path, "trained_model")
@@ -179,12 +192,13 @@ class Adapter(dl.BaseModelAdapter):
             generate_config['prompts'] = [question['value'] for question in prompt_contents.values()]
             responses = hf_generate.main(Namespace(**generate_config))
             item_annotations.extend(
-                [{
-                    'type': 'text',
-                    'label': 'q',
-                    'coordinates': response,
-                    'metadata': {'system': {'promptId': prompt_keys[i]}}
-                    } for i, response in enumerate(responses)
+                [
+                    {
+                        'type': 'text',
+                        'label': 'q',
+                        'coordinates': response,
+                        'metadata': {'system': {'promptId': prompt_keys[i]}}
+                        } for i, response in enumerate(responses)
                     ]
                 )
             annotations.append(item_annotations)
@@ -197,13 +211,13 @@ class Adapter(dl.BaseModelAdapter):
                 'hf': convert_dataset_hf,
                 'json': convert_dataset_json,
                 'finetune': convert_finetuning_dataset
-            }
+                }
             path_key = "dataset" if convert_configs.get("dataset_type", 'json') == 'finetune' else 'path'
             convert_configs[path_key] = data_path
             convert_configs['compression'] = None
             if "splits" in convert_configs:
                 convert_configs["splits"] = convert_configs["splits"].split(" ") \
-                if isinstance(convert_configs["splits"], str) else convert_configs["splits"]
+                    if isinstance(convert_configs["splits"], str) else convert_configs["splits"]
             if os.path.exists(convert_configs.get("out_root")):
                 shutil.rmtree(convert_configs.get("out_root"))
             convert_configs["local"] = convert_configs.get("out_root", "local-converted-data")
@@ -213,65 +227,77 @@ class Adapter(dl.BaseModelAdapter):
                 converted_files = os.listdir(convert_configs.get("out_root"))
                 os.makedirs(os.path.join(convert_configs.get("out_root"), "train"))
                 for file in converted_files:
-                    shutil.move(os.path.join(convert_configs.get("out_root"), file),
-                                os.path.join(convert_configs.get("out_root"), "train", file))
+                    shutil.move(
+                        os.path.join(convert_configs.get("out_root"), file),
+                        os.path.join(convert_configs.get("out_root"), "train", file)
+                        )
 
 
 def package_creation(project: dl.Project, old_ver=None):
     with open("finetune-config.json", "r") as config_file:
         default_config = json.load(config_file)
-    metadata = dl.Package.get_ml_metadata(cls=Adapter,
-                                          input_type='txt',
-                                          default_configuration=default_config,
-                                          )
+    metadata = dl.Package.get_ml_metadata(
+        cls=Adapter,
+        input_type='txt',
+        default_configuration=default_config,
+        )
     modules = dl.PackageModule.from_entry_point(entry_point='model_adapter.py')
     if old_ver:
         reqs = old_ver.requirements
     else:
         reqs = []
-    package = project.packages.push(package_name='mpt-adapter-finetuning',
-                                    src_path=os.getcwd(),
-                                    package_type='ml',
-                                    modules=[modules],
-                                    requirements=reqs,
-                                    service_config={
-                                        'runtime': dl.KubernetesRuntime(pod_type=dl.INSTANCE_CATALOG_GPU_K80_M,
-                                                                        runner_image='mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04',
-                                                                        autoscaler=dl.KubernetesRabbitmqAutoscaler(
-                                                                            min_replicas=0,
-                                                                            max_replicas=1),
-                                                                        concurrency=1).to_json(),
-                                        'initParams': {'model_entity': None}
-                                    },
-                                    metadata=metadata)
+    package = project.packages.push(
+        package_name='mpt-adapter-finetuning',
+        ignore_sanity_check=True,
+        src_path=os.getcwd(),
+        package_type='ml',
+        modules=[modules],
+        requirements=reqs,
+        service_config={
+            'runtime': dl.KubernetesRuntime(
+                pod_type=dl.INSTANCE_CATALOG_GPU_K80_M,
+                runner_image='mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04',
+                autoscaler=dl.KubernetesRabbitmqAutoscaler(
+                    min_replicas=0,
+                    max_replicas=1
+                    ),
+                concurrency=1
+                ).to_json(),
+            'initParams': {'model_entity': None}
+            },
+        metadata=metadata
+        )
     return package
 
 
 def model_creation(package: dl.Package, dataset: dl.Dataset, config_file_path: str, model_name: str):
     with open(config_file_path, "r") as config_file:
         default_config = json.load(config_file)
-    model = package.models.create(model_name=model_name,
-                                  description='mpt large language model',
-                                  tags=['llm', 'mpt'],
-                                  dataset_id=dataset.id,
-                                  input_type='text',
-                                  status='created',
-                                  scope='project',
-                                  train_filter=dl.Filters(field='dir', values='/train'),
-                                  validation_filter=dl.Filters(field='dir', values='/val'),
-                                  configuration=default_config,
-                                  project_id=package.project.id,
-                                  labels=[]
-                                  )
+    model = package.models.create(
+        model_name=model_name,
+        description='mpt large language model',
+        tags=['llm', 'mpt'],
+        dataset_id=dataset.id,
+        input_type='text',
+        status='created',
+        scope='project',
+        train_filter=dl.Filters(field='dir', values='/train'),
+        validation_filter=dl.Filters(field='dir', values='/val'),
+        configuration=default_config,
+        project_id=package.project.id,
+        labels=[]
+        )
     return model
 
 
 def main():
-    PROJECT_NAME = "nlp-experiments"
-    DATASET_NAME = "small-c4"
     project = dl.projects.get(PROJECT_NAME)
     dataset = project.datasets.get(DATASET_NAME)
     pkf = project.packages.get("mpt-adapter")
     pkf = package_creation(project, pkf)
-    model = model_creation(pkf, dataset)
+    model = model_creation(pkf, dataset, "./gp2-config.json", "gpt-2-mpt-finetune")
+    print(f"Model {model.name} created!")
 
+
+if __name__ == '__main__':
+    main()
